@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Risk Analyzer</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & Babel for zero-build instant browser execution -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #1a4fdf;
+      background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+        linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 24px 24px, 96px 96px, 96px 96px;
+      color: #f1f5f9;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .blueprint-panel {
+      background: rgba(14, 46, 140, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    /* Softened off-white cards for reduced glare */
+    .soft-card {
+      background: #f8fafc;
+      color: #1e293b;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.12);
+      border: 1px solid #e2e8f0;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #133ea8; }
+    ::-webkit-scrollbar-thumb { background: #60a5fa; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #93c5fd; }
+  </style>
+</head>
+<body class="min-h-screen selection:bg-white selection:text-blue-900 pb-16">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const API_BASE = "";
+
+    // Crisp Native SVG Icons
+    const Icons = {
+      Target: () => (
+        <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="6" />
+          <line x1="22" y1="12" x2="18" y2="12" />
+          <line x1="6" y1="12" x2="2" y2="12" />
+          <line x1="12" y1="6" x2="12" y2="2" />
+          <line x1="12" y1="22" x2="12" y2="18" />
+        </svg>
+      ),
+      Upload: () => (
+        <svg className="w-8 h-8 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+      ),
+      FileText: () => (
+        <svg className="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+      ),
+      FileUp: () => (
+        <svg className="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+        </svg>
+      ),
+      Sparkles: () => (
+        <svg className="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+        </svg>
+      ),
+      Download: () => (
+        <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+      ),
+      ChevronDown: () => (
+        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      ),
+      ChevronUp: () => (
+        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"/>
+        </svg>
+      ),
+      Check: () => (
+        <svg className="w-3.5 h-3.5 text-white inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      ),
+      AlertTriangle: () => (
+        <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      ),
+      AlertOctagon: () => (
+        <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536-3.536A2 2 0 0013.414 1.5H10.586a2 2 0 00-1.414.586L5.636 5.636A2 2 0 005.05 7.05v3.9a2 2 0 00.586 1.414l3.536 3.536a2 2 0 001.414.586h2.828a2 2 0 001.414-.586l3.536-3.536a2 2 0 00.586-1.414v-3.9a2 2 0 00-.586-1.414zM12 8v4m0 4h.01"/>
+        </svg>
+      ),
+      CheckCircle: () => (
+        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      ),
+      Wrench: () => (
+        <svg className="w-4 h-4 inline mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      )
+    };
+
+    function App() {
+      const [inputMode, setInputMode] = useState("file");
+      const [file, setFile] = useState(null);
+      const [rawText, setRawText] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [statusMessage, setStatusMessage] = useState("");
+      const [result, setResult] = useState(null);
+      const [filter, setFilter] = useState("All");
+      const [searchQuery, setSearchQuery] = useState("");
+      const [expandedId, setExpandedId] = useState(1);
+      const [isDragging, setIsDragging] = useState(false);
+
+      const handleFileDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          setFile(e.dataTransfer.files[0]);
+        }
+      };
+
+      const handleAnalyze = async () => {
+        setLoading(true);
+        setResult(null);
+
+        try {
+          let response;
+          if (inputMode === "file") {
+            if (!file) {
+              alert("Please select or drop a document file first.");
+              setLoading(false);
+              return;
+            }
+            setStatusMessage(`Extracting text from ${file.name}...`);
+            const formData = new FormData();
+            formData.append("file", file);
+
+            response = await fetch(`${API_BASE}/api/analyze-file`, {
+              method: "POST",
+              body: formData
+            });
+          } else {
+            if (!rawText.trim()) {
+              alert("Please paste contract text to analyze.");
+              setLoading(false);
+              return;
+            }
+            setStatusMessage("Evaluating clauses with LegalBERT...");
+            response = await fetch(`${API_BASE}/api/analyze-text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: rawText, document_name: "Pasted Contract Analysis" })
+            });
+          }
+
+          if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.detail || errBody.error || `Server responded with status ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            setResult(data);
+          } else {
+            alert(`Error: ${data.error || "Failed to analyze document."}`);
+          }
+        } catch (err) {
+          console.error(err);
+          alert(`Analysis Error: ${err.message || "Failed to connect to backend server."}`);
+        } finally {
+          setLoading(false);
+          setStatusMessage("");
+        }
+      };
+
+      const exportCSV = () => {
+        if (!result || !result.analysis.clauses) return;
+        const rows = [
+          ["ID", "Clause Heading", "Risk Level", "Confidence (%)", "Full Clause Text", "Recommended Redline Fix"]
+        ];
+        result.analysis.clauses.forEach(c => {
+          rows.push([
+            c.id,
+            `"${(c.heading || '').replace(/"/g, '""')}"`,
+            `"${c.risk_label}"`,
+            c.confidence,
+            `"${(c.text || '').replace(/"/g, '""')}"`,
+            `"${(c.recommendation || '').replace(/"/g, '""')}"`
+          ]);
+        });
+        const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Legal_Risk_Report_${result.filename || 'Contract'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      const filteredClauses = result?.analysis?.clauses?.filter(c => {
+        const matchesFilter = 
+          filter === "All" ? true :
+          filter === "High Risk" ? c.risk_label === "High Risk Clause" :
+          filter === "Review" ? c.risk_label === "Review Recommended" :
+          c.risk_label === "Standard Clause";
+
+        const matchesSearch = searchQuery === "" ||
+          c.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.heading.toLowerCase().includes(searchQuery.toLowerCase());
+
+        return matchesFilter && matchesSearch;
+      }) || [];
+
+      return (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Top Geometric Blueprint Navigation Header */}
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-white/20 gap-4">
+            <div>
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/30 flex items-center justify-center shadow-lg">
+                  <Icons.Target />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    Risk Analyzer
+                  </h1>
+                  <p className="text-xs text-blue-100 font-mono mt-0.5 tracking-wide">
+                    Automated Multi-Format Contract Audit & Redline System
+                  </p>
+                  <p className="text-[11px] text-blue-200 font-mono mt-1 tracking-wider font-semibold opacity-90">
+                    Sayan Roy, Ratan Jana, Sumit Ranjan Choudhury, Antarip Das
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <a 
+                href="https://huggingface.co/sayan-7/legalbert-contract-risk-classifier" 
+                target="_blank" 
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-xs font-mono text-white transition-all shadow-sm"
+              >
+                <span>Hugging Face Model ↗</span>
+              </a>
+            </div>
+          </header>
+
+          {/* Input Section (Blueprint Glass Container) */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-12">
+              <div className="blueprint-panel rounded-2xl p-6 shadow-2xl">
+                {/* Tabs */}
+                <div className="flex items-center justify-between border-b border-white/20 pb-4 mb-6">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setInputMode("file")}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                        inputMode === "file" 
+                          ? "bg-white text-blue-900 shadow-lg" 
+                          : "text-blue-100 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Icons.FileUp />
+                      Upload File (PDF / Word / Image)
+                    </button>
+                    <button
+                      onClick={() => setInputMode("text")}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                        inputMode === "text" 
+                          ? "bg-white text-blue-900 shadow-lg" 
+                          : "text-blue-100 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Icons.FileText />
+                      Paste Contract Text
+                    </button>
+                  </div>
+                </div>
+
+                {/* File Upload Dropzone */}
+                {inputMode === "file" ? (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleFileDrop}
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                      isDragging 
+                        ? "border-white bg-blue-950/50" 
+                        : "border-white/30 hover:border-white/60 bg-blue-950/40"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="fileInput"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.txt"
+                      onChange={(e) => e.target.files[0] && setFile(e.target.files[0])}
+                      className="hidden"
+                    />
+                    <label htmlFor="fileInput" className="cursor-pointer flex flex-col items-center">
+                      <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/25 flex items-center justify-center mb-4">
+                        <Icons.Upload />
+                      </div>
+                      <p className="text-base font-bold text-white">
+                        {file ? file.name : "Drag & Drop your contract here, or browse"}
+                      </p>
+                      <p className="text-xs text-blue-200 mt-1">
+                        Supports PDF (digital & scanned OCR), PNG, JPG, Word (.docx), and Plain Text
+                      </p>
+                      {file && (
+                        <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-blue-900 text-xs font-mono font-bold shadow-md">
+                          <Icons.Check />
+                          {(file.size / 1024).toFixed(1)} KB Ready
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Text box tinted in sleek dark blueprint blue */}
+                    <textarea
+                      rows="8"
+                      value={rawText}
+                      onChange={(e) => setRawText(e.target.value)}
+                      placeholder="Paste clauses or full contract text here (e.g. Section 1. Indemnification, Section 2. Termination, Section 3. Limitation of Liability...)"
+                      className="w-full rounded-xl bg-[#0f2e82]/80 text-blue-50 border border-white/25 p-4 text-sm placeholder-blue-300/60 focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono resize-y shadow-inner"
+                    ></textarea>
+                  </div>
+                )}
+
+                {/* Analyze Button */}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-7 py-3 rounded-xl font-extrabold text-sm transition-all shadow-xl ${
+                      loading 
+                        ? "bg-white/40 text-white cursor-not-allowed" 
+                        : "bg-white text-blue-900 hover:bg-blue-50 hover:shadow-2xl hover:scale-[1.01]"
+                    }`}
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-blue-900" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-blue-900">{statusMessage || "Analyzing..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Sparkles />
+                        <span>Audit Contract Risk</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Section (Softened Off-White Boxes) */}
+          {result && (
+            <div className="mt-10 space-y-8">
+              {/* Top Overview Cards - Soft Off-White Boxes */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                {/* Score Gauge */}
+                <div className={`soft-card rounded-2xl p-6 flex flex-col justify-between border-t-4 ${
+                  result.analysis.overall_score >= 60 ? "border-t-rose-600" :
+                  result.analysis.overall_score >= 30 ? "border-t-amber-500" :
+                  "border-t-emerald-600"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Contract Risk Score</span>
+                    <span className="text-xs font-mono text-slate-400">Weighted</span>
+                  </div>
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span className={`text-5xl font-black font-mono ${
+                      result.analysis.overall_score >= 60 ? "text-rose-600" :
+                      result.analysis.overall_score >= 30 ? "text-amber-600" :
+                      "text-emerald-600"
+                    }`}>
+                      {result.analysis.overall_score}
+                    </span>
+                    <span className="text-slate-400 text-sm font-mono font-semibold">/ 100</span>
+                  </div>
+                  <div className="mt-3">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                      result.analysis.overall_score >= 60 ? "bg-rose-100 text-rose-700 border border-rose-300" :
+                      result.analysis.overall_score >= 30 ? "bg-amber-100 text-amber-800 border border-amber-300" :
+                      "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    }`}>
+                      {result.analysis.risk_category}
+                    </span>
+                  </div>
+                </div>
+
+                {/* High Risk Count */}
+                <div className="soft-card rounded-2xl p-6 border-t-4 border-t-rose-600 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-rose-600">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">High Risk Clauses</span>
+                    <Icons.AlertOctagon />
+                  </div>
+                  <div className="mt-4 text-4xl font-black font-mono text-rose-600">
+                    {result.analysis.counts.high_risk}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500 font-medium">Severe liability or one-sided exposure</p>
+                </div>
+
+                {/* Review Recommended Count */}
+                <div className="soft-card rounded-2xl p-6 border-t-4 border-t-amber-500 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-amber-500">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Review Recommended</span>
+                    <Icons.AlertTriangle />
+                  </div>
+                  <div className="mt-4 text-4xl font-black font-mono text-amber-600">
+                    {result.analysis.counts.review_recommended}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500 font-medium">Ambiguities, IP, audit, payment terms</p>
+                </div>
+
+                {/* Standard Count */}
+                <div className="soft-card rounded-2xl p-6 border-t-4 border-t-emerald-600 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-emerald-600">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Standard Boilerplate</span>
+                    <Icons.CheckCircle />
+                  </div>
+                  <div className="mt-4 text-4xl font-black font-mono text-emerald-600">
+                    {result.analysis.counts.standard}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500 font-medium">Routine administrative legal clauses</p>
+                </div>
+              </div>
+
+              {/* Executive Brief Card - Soft Off-White Box */}
+              <div className="soft-card rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-3">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                    <Icons.FileText />
+                    Executive Contract Brief & Legal Diagnosis
+                  </h3>
+                  <span className="text-xs font-mono text-slate-500 bg-slate-200/80 px-2.5 py-0.5 rounded font-semibold">
+                    {result.extraction_method}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed font-normal">
+                  {result.analysis.executive_summary}
+                </p>
+              </div>
+
+              {/* Clause Explorer Section - Soft Off-White Box */}
+              <div className="soft-card rounded-2xl p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-200">
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900">Clause-by-Clause Risk Breakdown</h2>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">Total {result.analysis.total_clauses} clauses audited</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    {/* Filter Pills */}
+                    <div className="flex bg-slate-200/80 rounded-xl p-1 border border-slate-300 text-xs">
+                      {["All", "High Risk", "Review", "Standard"].map(tab => (
+                        <button
+                          key={tab}
+                          onClick={() => setFilter(tab)}
+                          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                            filter === tab 
+                              ? "bg-blue-600 text-white shadow-sm" 
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 md:w-64">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search clause text..."
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                      />
+                    </div>
+
+                    {/* Export CSV Button */}
+                    <button
+                      onClick={exportCSV}
+                      className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 border border-blue-300 text-xs font-bold text-blue-800 transition-all shadow-sm"
+                    >
+                      <Icons.Download />
+                      Export CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Clauses List */}
+                <div className="mt-6 space-y-4">
+                  {filteredClauses.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 text-sm font-medium">
+                      No clauses match the selected filter or search query.
+                    </div>
+                  ) : (
+                    filteredClauses.map((c) => {
+                      const isHigh = c.risk_label === "High Risk Clause";
+                      const isRev = c.risk_label === "Review Recommended";
+                      const isExpanded = expandedId === c.id;
+
+                      return (
+                        <div
+                          key={c.id}
+                          className={`rounded-xl border transition-all ${
+                            isHigh ? "bg-rose-50/70 border-rose-200 hover:border-rose-400" :
+                            isRev ? "bg-amber-50/70 border-amber-200 hover:border-amber-400" :
+                            "bg-white border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div
+                            onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                            className="p-4 flex items-center justify-between cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono px-2.5 py-1 rounded bg-slate-200 text-slate-700 font-bold">
+                                #{c.id}
+                              </span>
+                              <span className="font-bold text-sm text-slate-800">
+                                {c.heading}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              {/* Risk Badge */}
+                              <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                                isHigh ? "bg-rose-100 text-rose-700 border border-rose-300" :
+                                isRev ? "bg-amber-100 text-amber-800 border border-amber-300" :
+                                "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              }`}>
+                                {c.risk_label} ({c.confidence}%)
+                              </span>
+                              {isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                            </div>
+                          </div>
+
+                          {/* Expanded Content */}
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-2 border-t border-slate-200 space-y-3">
+                              {/* Full Clause Text */}
+                              <div className="p-3.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-xs text-slate-800 leading-relaxed shadow-sm">
+                                {c.text}
+                              </div>
+
+                              {/* Actionable Redline / Fix */}
+                              <div className={`p-3.5 rounded-lg border text-xs font-sans leading-relaxed ${
+                                isHigh ? "bg-rose-100/80 border-rose-300 text-rose-950" :
+                                isRev ? "bg-amber-100/80 border-amber-300 text-amber-950" :
+                                "bg-emerald-100/80 border-emerald-300 text-emerald-950"
+                              }`}>
+                                <div className="font-bold flex items-center gap-1.5 mb-1 text-slate-900">
+                                  <Icons.Wrench />
+                                  Actionable Legal Recommendation
+                                </div>
+                                {c.recommendation}
+                              </div>
+
+                              {/* Confidence Breakdown Bars */}
+                              <div className="grid grid-cols-3 gap-2 pt-2 text-[11px] font-mono text-slate-500">
+                                <div>High Risk: <span className="text-rose-600 font-bold">{c.confidence_breakdown["High Risk"]}%</span></div>
+                                <div>Review: <span className="text-amber-600 font-bold">{c.confidence_breakdown["Review"]}%</span></div>
+                                <div>Standard: <span className="text-emerald-600 font-bold">{c.confidence_breakdown["Standard"]}%</span></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
